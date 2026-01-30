@@ -14,6 +14,12 @@ import '../widgets/property_card.dart';
 import '../widgets/range_filter.dart';
 import '../widgets/search_field.dart';
 
+/// Pantalla de listado de viviendas.
+/// Incluye:
+/// - barra superior con búsqueda y selector Comprar/Alquilar
+/// - panel de filtros (lateral en web/escritorio, drawer en móvil)
+/// - listado de tarjetas con navegación al detalle
+/// - acciones para ver y guardar búsquedas persistidas
 class ListingPage extends StatefulWidget {
   const ListingPage({super.key});
 
@@ -22,14 +28,21 @@ class ListingPage extends StatefulWidget {
 }
 
 class _ListingPageState extends State<ListingPage> {
+  /// Permite abrir/cerrar el drawer de filtros en modo móvil.
   final _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  /// Controla el input del buscador para sincronizarlo con el provider.
   late final TextEditingController _controller;
 
+  /// Datos de prueba (catálogo) para la práctica.
   final _demo = Property.demo();
 
+  /// Aplica todos los filtros del SearchProvider al catálogo.
+  /// Se basa en un criterio completo (SearchCriteria) generado desde el provider.
   List<Property> _applyFilters(List<Property> all) {
     final c = context.read<SearchProvider>().buildCriteria();
 
+    // Comprueba si una lista contiene todas las selecciones marcadas.
     bool containsAll<T>(List<T> haystack, List<T> needles) {
       for (final n in needles) {
         if (!haystack.contains(n)) return false;
@@ -40,27 +53,27 @@ class _ListingPageState extends State<ListingPage> {
     final q = c.query.trim().toLowerCase();
 
     return all.where((p) {
-      // Comprar/Alquilar
+      // Operación (comprar/alquilar)
       if (p.operation != c.operation) return false;
 
-      // Buscador: si está vacío, NO filtra
+      // Búsqueda por texto: si está vacío no filtra.
       if (q.isNotEmpty) {
         final zone = p.zone.toLowerCase();
         final title = p.title.toLowerCase();
         if (!zone.contains(q) && !title.contains(q)) return false;
       }
 
-      // Rangos numéricos
+      // Filtros por rango.
       if (p.price < c.priceMin || p.price > c.priceMax) return false;
       if (p.bedrooms < c.bedroomsMin || p.bedrooms > c.bedroomsMax)
         return false;
       if (p.m2 < c.m2Min || p.m2 > c.m2Max) return false;
 
-      // Energía (si seleccionaste una)
+      // Energía: selección única (null = no filtra).
       if (c.energyRating != null && p.energyRating != c.energyRating)
         return false;
 
-      // Selecciones múltiples: la vivienda debe tener TODAS las seleccionadas
+      // Checkboxes: la vivienda debe cumplir todas las selecciones activas.
       if (!containsAll(p.certifications, c.certifications)) return false;
       if (!containsAll(p.nearbyServices, c.nearbyServices)) return false;
       if (!containsAll(p.adaptabilityFeatures, c.adaptabilityFeatures))
@@ -74,6 +87,7 @@ class _ListingPageState extends State<ListingPage> {
   @override
   void initState() {
     super.initState();
+    // Precarga el input del buscador con el estado actual del provider.
     _controller =
         TextEditingController(text: context.read<SearchProvider>().query);
   }
@@ -86,17 +100,21 @@ class _ListingPageState extends State<ListingPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Observa el provider para que UI y filtros se actualicen en tiempo real.
     final p = context.watch<SearchProvider>();
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        // Layout responsive: en pantallas anchas se muestra panel lateral fijo.
         final wide = constraints.maxWidth >= 1000;
+
+        // Texto actual del buscador para recalcular límites dinámicos.
         final q = p.query.trim().toLowerCase();
 
-// Base = lo que encaja con la búsqueda inicial (solo topbar)
+        // Base: conjunto que encaja con los filtros de topbar (operación + query).
+        // Se usa para ajustar automáticamente los máximos/mínimos de los sliders.
         final base = _demo.where((prop) {
           if (prop.operation != p.operation) return false;
-
           if (q.isNotEmpty) {
             final z = prop.zone.toLowerCase();
             final t = prop.title.toLowerCase();
@@ -105,7 +123,8 @@ class _ListingPageState extends State<ListingPage> {
           return true;
         }).toList();
 
-        // Si base está vacía, no cambiamos límites (para no romper sliders)
+        // Recalcula límites permitidos si existe al menos un resultado base.
+        // Se hace post-frame para evitar setState/notifies durante el build.
         if (base.isNotEmpty) {
           int minInt(Iterable<int> xs) => xs.reduce((a, b) => a < b ? a : b);
           int maxInt(Iterable<int> xs) => xs.reduce((a, b) => a > b ? a : b);
@@ -130,12 +149,16 @@ class _ListingPageState extends State<ListingPage> {
                 );
           });
         }
+
+        // Aplica el criterio completo (topbar + filtros).
         final filtered = _applyFilters(_demo);
+
         return Scaffold(
           key: _scaffoldKey,
           backgroundColor: AppColors.pageGray,
+
+          // Barra superior responsive: en estrecho se divide en dos filas.
           appBar: PreferredSize(
-            // ✅ altura variable: más alta en pantallas estrechas
             preferredSize: Size.fromHeight(wide ? 92 : 150),
             child: Container(
               color: AppColors.topBar,
@@ -146,7 +169,7 @@ class _ListingPageState extends State<ListingPage> {
                   builder: (context, c) {
                     final narrow = c.maxWidth < 860;
 
-                    // ✅ versión ancha: como la tienes, en una sola fila
+                    // Ancho: buscador + toggle + logo en una fila.
                     if (!narrow) {
                       return Row(
                         children: [
@@ -167,7 +190,7 @@ class _ListingPageState extends State<ListingPage> {
                       );
                     }
 
-                    // ✅ versión estrecha: 2 filas (buscador arriba, controles abajo)
+                    // Estrecho: buscador arriba y controles abajo.
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -182,8 +205,9 @@ class _ListingPageState extends State<ListingPage> {
                           children: [
                             Expanded(
                               child: OperationToggle(
-                                  value: p.operation,
-                                  onChanged: p.setOperation),
+                                value: p.operation,
+                                onChanged: p.setOperation,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             const LogoBadge(size: 56),
@@ -203,9 +227,22 @@ class _ListingPageState extends State<ListingPage> {
               ),
             ),
           ),
+
+          // En móvil: filtros en drawer con scroll.
           endDrawer: wide
               ? null
-              : Drawer(child: SafeArea(child: _FiltersPanel(wide: false))),
+              : Drawer(
+                  child: SafeArea(
+                    child: ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: const [
+                        _FiltersPanel(wide: false),
+                      ],
+                    ),
+                  ),
+                ),
+
+          // Cuerpo: panel de filtros fijo (solo wide) + listado.
           body: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -223,11 +260,14 @@ class _ListingPageState extends State<ListingPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      // Recuento de resultados visibles.
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text('Resultados: ${filtered.length}'),
                       ),
                       const SizedBox(height: 10),
+
+                      // Lista de tarjetas; al tocar navega al detalle.
                       for (final prop in filtered)
                         PropertyCard(
                           property: prop,
@@ -237,7 +277,10 @@ class _ListingPageState extends State<ListingPage> {
                             arguments: prop,
                           ),
                         ),
+
                       const SizedBox(height: 10),
+
+                      // Acciones relacionadas con persistencia de búsquedas.
                       Row(
                         children: [
                           Expanded(
@@ -269,6 +312,7 @@ class _ListingPageState extends State<ListingPage> {
     );
   }
 
+  /// Diálogo para pedir un nombre y persistir el criterio actual.
   Future<void> _openSaveDialog(BuildContext context) async {
     final p = context.read<SearchProvider>();
     final controller = TextEditingController();
@@ -286,15 +330,17 @@ class _ListingPageState extends State<ListingPage> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar')),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
           FilledButton(
             onPressed: () async {
               await p.saveSearch(controller.text);
               if (ctx.mounted) Navigator.pop(ctx);
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Búsqueda guardada')));
+                  const SnackBar(content: Text('Búsqueda guardada')),
+                );
               }
             },
             child: const Text('Guardar'),
@@ -305,6 +351,8 @@ class _ListingPageState extends State<ListingPage> {
   }
 }
 
+/// Panel de filtros reutilizado en lateral (wide) y en drawer (móvil).
+/// Todos los cambios se aplican sobre el SearchProvider y se reflejan en el listado.
 class _FiltersPanel extends StatelessWidget {
   const _FiltersPanel({required this.wide});
 
@@ -321,6 +369,7 @@ class _FiltersPanel extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Cabecera del panel: título y reset.
             Row(
               children: [
                 const Expanded(
@@ -337,6 +386,8 @@ class _FiltersPanel extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 6),
+
+            // Sliders: usan límites dinámicos y muestran errorText si hay validación.
             RangeFilter(
               title: 'Precio:',
               min: p.priceMinAllowed.toDouble(),
@@ -368,10 +419,14 @@ class _FiltersPanel extends StatelessWidget {
               label: (r) => '${r.start.round()} – ${r.end.round()} m²',
               errorText: p.errors['m2'],
             ),
+
+            // Selector de calificación energética (selección única).
             EnergyRatingSelector(
               selected: p.energyRating,
               onToggle: p.toggleEnergy,
             ),
+
+            // Checkboxes por categoría.
             CheckboxList<Certification>(
               title: 'Certificación vivienda:',
               items: Certification.values,
@@ -400,21 +455,10 @@ class _FiltersPanel extends StatelessWidget {
               labelOf: (e) => e.label,
               onChanged: (e, v) => p.toggleExtra(e),
             ),
+
             const SizedBox(height: 6),
-            /*
-            FilledButton.icon(
-              onPressed: () {
-                final ok = context.read<SearchProvider>().validateForApply();
-                if (!ok) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                      content: Text(
-                          'Filtros aplicados: ${p.buildCriteria().summaryLine()}')),
-                );
-              },
-              icon: const Icon(Icons.filter_alt),
-              label: const Text('Aplicar filtros'),
-            ),*/
+
+            // Botón de "Aplicar filtros" eliminado porque el listado se actualiza automáticamente.
           ],
         ),
       ),

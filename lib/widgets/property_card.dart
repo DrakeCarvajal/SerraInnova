@@ -4,14 +4,24 @@ import 'package:serrainnova_form/models/enums.dart';
 import '../models/property.dart';
 import 'app_theme.dart';
 
+/// Tarjeta de vivienda usada en el listado.
+/// Muestra una previsualización con:
+/// - imagen (si existe)
+/// - botones de acción rápidos (llamar/contactar)
+/// - información principal (título, precio, resumen, chips)
+/// Además adapta el layout según el ancho (columna en móvil, fila en pantallas anchas).
 class PropertyCard extends StatelessWidget {
   const PropertyCard({super.key, required this.property, required this.onTap});
 
+  /// Modelo de datos de la vivienda que se renderiza.
   final Property property;
+
+  /// Acción al pulsar la tarjeta (normalmente abre el detalle).
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    // InkWell hace la tarjeta clicable y muestra feedback táctil.
     return InkWell(
       onTap: onTap,
       child: Card(
@@ -19,18 +29,23 @@ class PropertyCard extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
         child: Padding(
           padding: const EdgeInsets.all(12),
+
+          // LayoutBuilder permite cambiar el diseño según el espacio disponible.
           child: LayoutBuilder(
             builder: (context, c) {
               final narrow = c.maxWidth < 820;
 
+              // Bloque visual: imagen grande + botones debajo.
               final imageBlock = Column(
                 children: [
                   SizedBox(
-                    height: 240, // ✅ más altura para la imagen
+                    height: 240, // más altura para mejorar la imagen
                     width: double.infinity,
                     child: _PropertyImage(url: property.imageUrl),
                   ),
                   const SizedBox(height: 10),
+
+                  // Acciones rápidas (no navegan, son acciones locales).
                   Row(
                     children: [
                       Expanded(
@@ -53,11 +68,12 @@ class PropertyCard extends StatelessWidget {
                 ],
               );
 
+              // Bloque de texto: datos principales de la vivienda.
               final infoBlock = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    property.title,
+                    property.title, // tipo + zona
                     style: TextStyle(
                       color: AppColors.deepBlueTitle,
                       fontWeight: FontWeight.w900,
@@ -68,20 +84,32 @@ class PropertyCard extends StatelessWidget {
                   Text(
                     property.priceLabel.toUpperCase(),
                     style: const TextStyle(
-                        fontSize: 26, fontWeight: FontWeight.w900),
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                   const SizedBox(height: 10),
-                  const Text('Descripción',
-                      style: TextStyle(fontWeight: FontWeight.w900)),
+
+                  // Descripción recortada para que la tarjeta no sea infinita.
+                  const Text(
+                    'Descripción',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
                   const SizedBox(height: 6),
                   Text(
                     _short(property.description, 220),
                     style: const TextStyle(height: 1.25),
                   ),
+
                   const SizedBox(height: 12),
-                  Text(property.featuresLine,
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Text(
+                    property.featuresLine, // hab + m2 + planta
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+
                   const SizedBox(height: 10),
+
+                  // Chips con información rápida (energía + certificaciones + extras).
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -97,8 +125,8 @@ class PropertyCard extends StatelessWidget {
                 ],
               );
 
+              // Layout móvil: todo apilado.
               if (narrow) {
-                // ✅ móvil/estrecho: primero imagen+botones, luego info
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -109,7 +137,7 @@ class PropertyCard extends StatelessWidget {
                 );
               }
 
-              // ✅ ancho: izquierda imagen+botones, derecha info
+              // Layout ancho: imagen a la izquierda, info a la derecha.
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -125,6 +153,7 @@ class PropertyCard extends StatelessWidget {
     );
   }
 
+  /// Recorta texto largo para evitar tarjetas excesivamente grandes.
   String _short(String s, int max) {
     final t = s.trim().replaceAll(RegExp(r'\s+'), ' ');
     if (t.length <= max) return t;
@@ -132,12 +161,17 @@ class PropertyCard extends StatelessWidget {
   }
 }
 
+/// Widget de imagen con placeholder y manejo básico de carga/errores.
+/// Se usa tanto cuando hay url válida como cuando no existe imagen.
 class _PropertyImage extends StatelessWidget {
   const _PropertyImage({this.url});
+
+  /// URL remota de la imagen (puede ser null).
   final String? url;
 
   @override
   Widget build(BuildContext context) {
+    // Si no hay imagen, se muestra un placeholder centrado.
     final child = (url == null || url!.isEmpty)
         ? const Center(
             child: Text(
@@ -149,17 +183,19 @@ class _PropertyImage extends StatelessWidget {
         : Image.network(
             url!,
             fit: BoxFit.cover,
+            // Indicador de carga para UX.
             loadingBuilder: (context, child, progress) {
               if (progress == null) return child;
               return const Center(child: CircularProgressIndicator());
             },
+            // Mensaje simple si falla la carga (y log en consola para depurar).
             errorBuilder: (context, error, stack) {
-              // Esto ayuda a ver el motivo real en la consola
               debugPrint('Image error: $error');
               return const Center(child: Text('No se pudo cargar la imagen'));
             },
           );
 
+    // Recorta la imagen al contenedor (si luego usas bordes redondeados, se respeta).
     return ClipRRect(
       borderRadius: BorderRadius.circular(0),
       child: Container(
@@ -170,9 +206,13 @@ class _PropertyImage extends StatelessWidget {
   }
 }
 
+/// Botón de acción pequeño, usado para “Llamar” y “Contactar”.
 class _ActionButton extends StatelessWidget {
-  const _ActionButton(
-      {required this.icon, required this.label, required this.onPressed});
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
 
   final IconData icon;
   final String label;
@@ -190,6 +230,8 @@ class _ActionButton extends StatelessWidget {
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
         onPressed: onPressed,
+
+        // Icono dentro de un CircleAvatar para mantener estilo consistente.
         icon: CircleAvatar(
           backgroundColor: Colors.transparent,
           foregroundColor: Colors.black,
@@ -201,6 +243,7 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
+/// Chip visual para etiquetas rápidas en la tarjeta.
 class _Chip extends StatelessWidget {
   const _Chip({required this.text});
   final String text;
@@ -214,8 +257,10 @@ class _Chip extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: const Color(0xFF76D6E0), width: 1),
       ),
-      child: Text(text,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+      ),
     );
   }
 }

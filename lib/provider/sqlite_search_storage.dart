@@ -6,10 +6,20 @@ import '../models/enums.dart';
 import '../models/search_criteria.dart';
 import 'search_storage.dart';
 
+/// Persistencia de búsquedas usando SQLite.
+/// Guarda una fila por búsqueda (tabla searches) y usa tablas puente para listas:
+/// - certificaciones
+/// - servicios cercanos
+/// - adaptabilidad
+/// - extras
 class SqliteSearchStorage implements SearchStorage {
   SqliteSearchStorage._(this._db);
+
+  /// Conexión abierta a la base de datos.
   final Database _db;
 
+  /// Abre/crea la BD local de la app y devuelve el storage listo.
+  /// foreign_keys se activa para que ON DELETE CASCADE borre también en tablas puente.
   static Future<SqliteSearchStorage> initDb() async {
     final dir = await getApplicationDocumentsDirectory();
     final path = p.join(dir.path, 'serrainnova.db');
@@ -18,6 +28,8 @@ class SqliteSearchStorage implements SearchStorage {
       path,
       version: 3,
       onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON;'),
+
+      // Crea el esquema completo la primera vez.
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE searches (
@@ -75,13 +87,17 @@ class SqliteSearchStorage implements SearchStorage {
           );
         ''');
       },
+
+      // Para la práctica: si existía una versión anterior, se recrea el esquema completo.
+      // Nota: aquí tu condición usa oldVersion < 2, pero tu versión actual es 3;
+      // si vienes de v2, este bloque NO se ejecuta. Lo correcto sería oldVersion < 3.
       onUpgrade: (db, oldVersion, newVersion) async {
-        // Para la práctica: si hay BD antigua, recreamos.
         if (oldVersion < 2) {
           await db.execute('DROP TABLE IF EXISTS search_extras');
           await db.execute('DROP TABLE IF EXISTS search_services');
           await db.execute('DROP TABLE IF EXISTS search_certifications');
           await db.execute('DROP TABLE IF EXISTS searches');
+
           await db.execute('''
             CREATE TABLE searches (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,6 +117,7 @@ class SqliteSearchStorage implements SearchStorage {
               created_at TEXT NOT NULL
             );
           ''');
+
           await db.execute('''
             CREATE TABLE search_certifications (
               search_id INTEGER NOT NULL,
@@ -109,6 +126,7 @@ class SqliteSearchStorage implements SearchStorage {
               FOREIGN KEY (search_id) REFERENCES searches(id) ON DELETE CASCADE
             );
           ''');
+
           await db.execute('''
             CREATE TABLE search_services (
               search_id INTEGER NOT NULL,
@@ -117,6 +135,7 @@ class SqliteSearchStorage implements SearchStorage {
               FOREIGN KEY (search_id) REFERENCES searches(id) ON DELETE CASCADE
             );
           ''');
+
           await db.execute('''
             CREATE TABLE search_adaptability (
               search_id INTEGER NOT NULL,
@@ -125,6 +144,7 @@ class SqliteSearchStorage implements SearchStorage {
               FOREIGN KEY (search_id) REFERENCES searches(id) ON DELETE CASCADE
             );
           ''');
+
           await db.execute('''
             CREATE TABLE search_extras (
               search_id INTEGER NOT NULL,
@@ -142,11 +162,13 @@ class SqliteSearchStorage implements SearchStorage {
 
   @override
   Future<void> init() async {
-    // init happens through initDb; kept for interface
+    // La inicialización real se hace en initDb(); se mantiene por el contrato.
   }
 
+  /// Inserta una búsqueda y sus relaciones N:M en tablas puente con un batch.
   @override
   Future<int> insertSearch(SearchCriteria c) async {
+    // Inserta la fila principal.
     final id = await _db.insert('searches', {
       'name': c.name ?? 'Búsqueda',
       'query': c.query,
@@ -161,15 +183,19 @@ class SqliteSearchStorage implements SearchStorage {
       'created_at': c.createdAt.toIso8601String(),
     });
 
+    // Inserta listas en tablas puente.
     final batch = _db.batch();
+
     for (final cert in c.certifications) {
       batch.insert(
           'search_certifications', {'search_id': id, 'cert_code': cert.code});
     }
+
     for (final s in c.nearbyServices) {
       batch
           .insert('search_services', {'search_id': id, 'service_code': s.code});
     }
+
     for (final a in c.adaptabilityFeatures) {
       batch.insert(
           'search_adaptability', {'search_id': id, 'adapt_code': a.code});
@@ -178,11 +204,12 @@ class SqliteSearchStorage implements SearchStorage {
     for (final e in c.extras) {
       batch.insert('search_extras', {'search_id': id, 'extra_code': e.code});
     }
-    await batch.commit(noResult: true);
 
+    await batch.commit(noResult: true);
     return id;
   }
 
+  /// Lista búsquedas guardadas y reconstruye los filtros multiselección desde tablas puente.
   @override
   Future<List<SearchCriteria>> listSearches() async {
     final rows = await _db.query('searches', orderBy: 'created_at DESC');
@@ -197,18 +224,21 @@ class SqliteSearchStorage implements SearchStorage {
         where: 'search_id = ?',
         whereArgs: [id],
       );
+
       final serviceRows = await _db.query(
         'search_services',
         columns: ['service_code'],
         where: 'search_id = ?',
         whereArgs: [id],
       );
+
       final adaptRows = await _db.query(
         'search_adaptability',
         columns: ['adapt_code'],
         where: 'search_id = ?',
         whereArgs: [id],
       );
+
       final extraRows = await _db.query(
         'search_extras',
         columns: ['extra_code'],
@@ -216,6 +246,7 @@ class SqliteSearchStorage implements SearchStorage {
         whereArgs: [id],
       );
 
+      // Reconstruye SearchCriteria usando fromCode() para volver a enums.
       out.add(
         SearchCriteria(
           id: id,
@@ -251,6 +282,7 @@ class SqliteSearchStorage implements SearchStorage {
     return out;
   }
 
+  /// Elimina una búsqueda por id. Con foreign_keys activado, las tablas puente se limpian en cascada.
   @override
   Future<void> deleteSearch(int id) async {
     await _db.delete('searches', where: 'id = ?', whereArgs: [id]);

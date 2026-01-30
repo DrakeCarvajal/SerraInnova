@@ -7,6 +7,9 @@ import '../widgets/logo_badge.dart';
 import '../widgets/operation_toggle.dart';
 import '../widgets/search_field.dart';
 
+/// Pantalla inicial de la aplicación.
+/// Permite introducir una búsqueda por zona/barrio y seleccionar la operación
+/// (comprar o alquilar) antes de navegar al listado.
 class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
 
@@ -15,59 +18,71 @@ class LandingPage extends StatefulWidget {
 }
 
 class _LandingPageState extends State<LandingPage> {
+  /// Controla el texto del buscador de la landing.
+  /// Se inicializa con el valor actual del provider para mantener consistencia
+  /// si el usuario vuelve atrás.
   late final TextEditingController _controller;
 
-  static const _bgBlue = Color(0xFF1E5D80); // ajusta si quieres otro azul
-  static const _cardGreen = Color(0xFFB7F7B0); // verde del mockup aprox
+  /// Colores base del mockup para la landing.
+  static const _bgBlue = Color(0xFF1E5D80);
+  static const _cardGreen = Color(0xFFB7F7B0);
 
   @override
   void initState() {
     super.initState();
+    // Lee el estado existente una sola vez para precargar el input.
     final p = context.read<SearchProvider>();
     _controller = TextEditingController(text: p.query);
   }
 
   @override
   void dispose() {
+    // Libera el controller para evitar fugas de memoria.
     _controller.dispose();
     super.dispose();
   }
 
+  /// Guarda el texto actual en el provider y navega a la pantalla de listado.
+  /// Si el texto está vacío, el listado mostrará todas las viviendas.
   void _goToListing(BuildContext context) {
     final p = context.read<SearchProvider>();
-    p.setQuery(_controller.text.trim()); // si está vacío => muestra todo
+    p.setQuery(_controller.text.trim());
     Navigator.pushNamed(context, AppRoutes.listing);
   }
 
   @override
   Widget build(BuildContext context) {
+    // Escucha cambios para que el toggle de operación refleje el estado actual.
     final p = context.watch<SearchProvider>();
 
     return Scaffold(
       backgroundColor: _bgBlue,
       body: SafeArea(
         child: Center(
+          // Permite que en pantallas pequeñas no haya overflow (scroll vertical).
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
             child: ConstrainedBox(
+              // Limita el ancho para web/desktop y fuerza altura mínima para dar aire visual.
               constraints: const BoxConstraints(maxWidth: 760, minHeight: 520),
               child: Card(
                 color: _cardGreen,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18)),
+                  borderRadius: BorderRadius.circular(18),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(22, 34, 22, 28),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Logo centrado
+                      // Logo principal centrado.
                       const Align(
                         alignment: Alignment.center,
                         child: LogoBadge(size: 200),
                       ),
                       const SizedBox(height: 18),
 
-                      // Título / subtítulo (opcional pero ayuda a “estructurar”)
+                      // Texto de cabecera para guiar al usuario.
                       const Text(
                         'Encuentra tu vivienda sostenible',
                         textAlign: TextAlign.center,
@@ -83,7 +98,7 @@ class _LandingPageState extends State<LandingPage> {
                       ),
                       const SizedBox(height: 18),
 
-                      // Buscador (más protagonista)
+                      // Campo de búsqueda; al enviar, navega al listado.
                       SearchField(
                         controller: _controller,
                         hintText:
@@ -92,7 +107,7 @@ class _LandingPageState extends State<LandingPage> {
                       ),
                       const SizedBox(height: 14),
 
-                      // Toggle + botón en fila (o apilado según ancho)
+                      // En pantallas estrechas apila controles; en anchas los muestra en fila.
                       LayoutBuilder(
                         builder: (context, c) {
                           final narrow = c.maxWidth < 520;
@@ -138,7 +153,7 @@ class _LandingPageState extends State<LandingPage> {
 
                       const SizedBox(height: 10),
 
-                      // “Hint” pequeño para UX
+                      // Mensaje breve para aclarar el comportamiento del buscador vacío.
                       const Text(
                         'Tip: si dejas el buscador vacío, verás todas las viviendas disponibles.',
                         textAlign: TextAlign.center,

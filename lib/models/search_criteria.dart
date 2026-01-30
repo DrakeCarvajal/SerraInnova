@@ -2,55 +2,70 @@ import 'package:flutter/material.dart';
 
 import 'enums.dart';
 
+/// Modelo que representa el estado completo de una búsqueda guardada.
+/// Se usa para:
+/// - reconstruir filtros (cuando el usuario carga una búsqueda)
+/// - persistir en SQLite/Prefs (toJson/fromJson)
+/// - mostrar un resumen corto en la lista de guardados (summaryLine)
 class SearchCriteria {
   SearchCriteria({
-    this.id,
-    required this.query,
-    required this.operation,
+    this.id, // id asignado por SQLite (null si aún no se ha guardado)
+    required this.query, // texto de búsqueda por zona/barrio
+    required this.operation, // comprar o alquilar
     required this.priceMin,
     required this.priceMax,
     required this.bedroomsMin,
     required this.bedroomsMax,
     required this.m2Min,
     required this.m2Max,
-    required this.energyRating, // selección única (para imitar checkboxes del mockup)
-    required this.certifications,
-    required this.nearbyServices,
-    required this.extras,
-    required this.adaptabilityFeatures,
-    required this.createdAt,
-    this.name,
+    required this.energyRating, // selección única; null significa "indiferente"
+    required this.certifications, // selección múltiple
+    required this.nearbyServices, // selección múltiple
+    required this.extras, // selección múltiple
+    required this.adaptabilityFeatures, // selección múltiple
+    required this.createdAt, // fecha de creación para ordenar guardados
+    this.name, // nombre opcional asignado por el usuario al guardar
   });
 
+  /// Identificador de la búsqueda en la BD.
   final int? id;
-  final String query; // barrio / zona
+
+  /// Texto libre usado por el buscador (zona/barrio).
+  final String query;
+
+  /// Operación a filtrar: compra o alquiler.
   final OperationType operation;
 
+  /// Rangos numéricos usados por sliders.
   final int priceMin;
   final int priceMax;
-
   final int bedroomsMin;
   final int bedroomsMax;
-
   final int m2Min;
   final int m2Max;
 
-  final EnergyRating? energyRating; // null = indiferente
+  /// Calificación energética elegida (A-G). Si es null, no filtra por energía.
+  final EnergyRating? energyRating;
 
+  /// Listas de filtros multiselección (checkboxes).
   final List<Certification> certifications;
   final List<NearbyService> nearbyServices;
   final List<Adaptability> adaptabilityFeatures;
   final List<ExtraFeature> extras;
 
+  /// Metadatos de la búsqueda guardada.
   final DateTime createdAt;
   final String? name;
 
+  /// Helpers para conectar con widgets de tipo RangeSlider (requieren doubles).
   RangeValues get priceRange =>
       RangeValues(priceMin.toDouble(), priceMax.toDouble());
   RangeValues get bedroomsRange =>
       RangeValues(bedroomsMin.toDouble(), bedroomsMax.toDouble());
   RangeValues get m2Range => RangeValues(m2Min.toDouble(), m2Max.toDouble());
 
+  /// Resumen compacto para mostrar en la lista de "Búsquedas guardadas".
+  /// No enumera cada filtro, solo da una idea rápida de lo seleccionado.
   String summaryLine() {
     final parts = <String>[
       operation.label,
@@ -66,6 +81,8 @@ class SearchCriteria {
     return parts.join(' · ');
   }
 
+  /// Serialización genérica (útil para Preferences o como formato intermedio).
+  /// Se guardan enums mediante sus códigos estables (code) para no depender del orden del enum.
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -87,6 +104,8 @@ class SearchCriteria {
     };
   }
 
+  /// Deserialización: reconstruye el criterio convirtiendo códigos a enums.
+  /// Incluye valores por defecto para evitar fallos si faltan campos.
   static SearchCriteria fromJson(Map<String, dynamic> j) {
     return SearchCriteria(
       id: j['id'] as int?,

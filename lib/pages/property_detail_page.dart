@@ -5,13 +5,19 @@ import '../models/property.dart';
 import '../widgets/app_theme.dart';
 import '../widgets/logo_badge.dart';
 
+/// Pantalla de detalle de una vivienda.
+/// Muestra imagen, botones de contacto y toda la información relevante.
+/// Incluye scroll para soportar descripciones largas en móvil.
 class PropertyDetailPage extends StatelessWidget {
   const PropertyDetailPage({super.key, required this.property});
 
+  /// Vivienda recibida desde el listado mediante navegación.
+  /// Si es null, se usa una vivienda de ejemplo para evitar errores.
   final Property? property;
 
   @override
   Widget build(BuildContext context) {
+    // Fallback para pruebas o si no se recibe el argumento.
     final p = property ??
         Property(
           id: 0,
@@ -34,6 +40,7 @@ class PropertyDetailPage extends StatelessWidget {
         );
 
     return Scaffold(
+      // AppBar con color corporativo y logo como acción a la derecha.
       appBar: AppBar(
         backgroundColor: AppColors.topBar,
         title: const Text('Detalle de vivienda'),
@@ -44,9 +51,12 @@ class PropertyDetailPage extends StatelessWidget {
           ),
         ],
       ),
+
+      // Scroll para que la información completa sea accesible en pantallas pequeñas.
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Center(
+          // Limita el ancho máximo para que en web/escritorio el contenido no quede demasiado extendido.
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1100),
             child: Card(
@@ -56,6 +66,7 @@ class PropertyDetailPage extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 child: LayoutBuilder(
                   builder: (context, c) {
+                    // Layout responsive: dos columnas en ancho, una columna en estrecho.
                     final wide = c.maxWidth >= 860;
 
                     final left = _ImageAndButtons(p: p);
@@ -65,8 +76,10 @@ class PropertyDetailPage extends StatelessWidget {
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // Columna izquierda con ancho fijo para imagen + botones.
                           SizedBox(width: 440, child: left),
                           const SizedBox(width: 18),
+                          // Columna derecha ocupa el resto con los detalles.
                           Expanded(child: right),
                         ],
                       );
@@ -91,6 +104,8 @@ class PropertyDetailPage extends StatelessWidget {
   }
 }
 
+/// Columna izquierda: imagen principal y botones de acción.
+/// Los botones se apilan automáticamente si no hay suficiente ancho.
 class _ImageAndButtons extends StatelessWidget {
   const _ImageAndButtons({required this.p});
 
@@ -100,7 +115,7 @@ class _ImageAndButtons extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Imagen grande
+        // Contenedor de imagen: muestra placeholder si no hay URL.
         SizedBox(
           height: 420,
           width: double.infinity,
@@ -120,10 +135,12 @@ class _ImageAndButtons extends StatelessWidget {
                   : Image.network(
                       p.imageUrl!,
                       fit: BoxFit.cover,
+                      // Loader para evitar saltos visuales mientras se descarga la imagen.
                       loadingBuilder: (context, child, progress) {
                         if (progress == null) return child;
                         return const Center(child: CircularProgressIndicator());
                       },
+                      // Manejo de error para enlaces caídos o sin acceso.
                       errorBuilder: (context, error, stack) {
                         debugPrint('Image error: $error');
                         return const Center(
@@ -136,7 +153,7 @@ class _ImageAndButtons extends StatelessWidget {
 
         const SizedBox(height: 14),
 
-        // Botones adaptativos
+        // Botones adaptativos: en pantallas estrechas pasan a columna para evitar cortes de texto.
         LayoutBuilder(
           builder: (context, c) {
             final stacked = c.maxWidth < 420;
@@ -180,12 +197,15 @@ class _ImageAndButtons extends StatelessWidget {
   }
 }
 
+/// Columna derecha: datos principales, chips (etiquetas) y descripción.
+/// Los chips resumen sostenibilidad, servicios, extras y adaptabilidad.
 class _Details extends StatelessWidget {
   const _Details({required this.p});
   final Property p;
 
   @override
   Widget build(BuildContext context) {
+    // Construye una lista de chips a partir de los atributos del modelo.
     final chips = <Widget>[
       _Chip(text: 'Energía ${p.energyRating.code}'),
       ...p.certifications.map((e) => _Chip(text: e.label)),
@@ -197,8 +217,9 @@ class _Details extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Título corto: tipo + zona.
         Text(
-          p.title, // ✅ tipo + zona
+          p.title,
           style: TextStyle(
             color: AppColors.deepBlueTitle,
             fontWeight: FontWeight.w900,
@@ -206,21 +227,34 @@ class _Details extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
+
+        // Precio formateado según operación (€/mes para alquiler).
         Text(
           p.priceLabel.toUpperCase(),
           style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
         ),
+
         const SizedBox(height: 10),
-        Text(p.featuresLine,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+
+        // Resumen de características principales.
+        Text(
+          p.featuresLine,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+
         const SizedBox(height: 12),
+
+        // Etiquetas de filtros para contextualizar la vivienda rápidamente.
         if (chips.isNotEmpty)
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: chips,
           ),
+
         const SizedBox(height: 18),
+
+        // Texto largo de descripción.
         const Text(
           'Descripción de la vivienda',
           style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20),
@@ -235,6 +269,8 @@ class _Details extends StatelessWidget {
   }
 }
 
+/// Botón reutilizable para acciones del detalle.
+/// Ajusta tipografía/padding en modo compacto para evitar saltos de línea.
 class _ActionButton extends StatelessWidget {
   const _ActionButton({
     required this.icon,
@@ -267,6 +303,7 @@ class _ActionButton extends StatelessWidget {
         children: [
           Icon(icon, color: Colors.black, size: compact ? 22 : 24),
           SizedBox(width: compact ? 8 : 10),
+          // Texto en una sola línea para evitar "Contact / ar" en tamaños estrechos.
           Flexible(
             child: Text(
               label,
@@ -281,6 +318,7 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
+/// Chip simple para mostrar etiquetas de atributos (energía, certificaciones, etc.).
 class _Chip extends StatelessWidget {
   const _Chip({required this.text});
   final String text;
@@ -294,8 +332,10 @@ class _Chip extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: const Color(0xFF76D6E0), width: 1),
       ),
-      child: Text(text,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+      ),
     );
   }
 }

@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../models/enums.dart';
 
+/// Selector de calificación energética inspirado en el “diagrama” típico (A→G).
+/// Muestra una lista de barras con forma de flecha, donde:
+/// - A es la más corta (mejor eficiencia)
+/// - G es la más larga (peor eficiencia)
+/// Permite seleccionar una única letra (tap para seleccionar / tap de nuevo para deseleccionar en el provider).
 class EnergyRatingSelector extends StatelessWidget {
   const EnergyRatingSelector({
     super.key,
@@ -9,7 +14,10 @@ class EnergyRatingSelector extends StatelessWidget {
     required this.onToggle,
   });
 
+  /// Valor actualmente seleccionado. Null significa "sin preferencia".
   final EnergyRating? selected;
+
+  /// Callback cuando el usuario toca una letra.
   final void Function(EnergyRating r) onToggle;
 
   @override
@@ -18,18 +26,23 @@ class EnergyRatingSelector extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 10),
+
+        // Título del bloque de filtros.
         const Text(
           'Calificación energética:',
           style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
         ),
         const SizedBox(height: 10),
+
+        // LayoutBuilder permite calcular el ancho máximo disponible en este panel
+        // y escalar las barras según el espacio real.
         LayoutBuilder(
           builder: (context, c) {
-            // ancho máximo disponible para la barra más larga (G)
             final maxW = c.maxWidth;
 
             return Column(
               children: [
+                // Genera una fila por cada letra A..G.
                 for (final r in EnergyRating.values)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
@@ -49,9 +62,8 @@ class EnergyRatingSelector extends StatelessWidget {
     );
   }
 
+  /// Calcula el ancho de cada barra según la letra (A más corta, G más larga).
   double _widthFor(EnergyRating r, double maxW) {
-    // A corta → G larga (estilo etiqueta energía)
-    // Ajusta estos factores a tu gusto para que “se vea como tu mockup”
     final factor = switch (r) {
       EnergyRating.A => 0.55,
       EnergyRating.B => 0.62,
@@ -64,20 +76,21 @@ class EnergyRatingSelector extends StatelessWidget {
     return maxW * factor;
   }
 
+  /// Colores aproximados del estándar (verde→rojo) para reforzar el significado visual.
   Color _colorFor(EnergyRating r) {
-    // Colores aproximados del estándar (puedes cambiarlos)
     return switch (r) {
-      EnergyRating.A => const Color(0xFF0a9343), // verde
-      EnergyRating.B => const Color(0xFF2bb673), // verde claro
-      EnergyRating.C => const Color(0xFF8ec63f), // verde lima
-      EnergyRating.D => const Color(0xFFf6ee31), // amarillo
-      EnergyRating.E => const Color(0xFFfcb042), // naranja
-      EnergyRating.F => const Color(0xFFf6931c), // naranja oscuro
-      EnergyRating.G => const Color(0xFFed1b24), // rojo
+      EnergyRating.A => const Color(0xFF0a9343),
+      EnergyRating.B => const Color(0xFF2bb673),
+      EnergyRating.C => const Color(0xFF8ec63f),
+      EnergyRating.D => const Color(0xFFf6ee31),
+      EnergyRating.E => const Color(0xFFfcb042),
+      EnergyRating.F => const Color(0xFFf6931c),
+      EnergyRating.G => const Color(0xFFed1b24),
     };
   }
 }
 
+/// Fila individual (una letra) con forma de flecha y estado seleccionado.
 class _EnergyArrowRow extends StatelessWidget {
   const _EnergyArrowRow({
     required this.rating,
@@ -87,10 +100,19 @@ class _EnergyArrowRow extends StatelessWidget {
     required this.onTap,
   });
 
+  /// Letra A..G.
   final EnergyRating rating;
+
+  /// Ancho calculado para esta fila.
   final double width;
+
+  /// Color de fondo (verde→rojo).
   final Color color;
+
+  /// Si está seleccionada, se marca con borde y check.
   final bool selected;
+
+  /// Acción al tocar.
   final VoidCallback onTap;
 
   @override
@@ -108,6 +130,7 @@ class _EnergyArrowRow extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border.all(color: borderColor, width: 2),
           ),
+          // ClipPath recorta el contenedor con forma de flecha.
           child: ClipPath(
             clipper: _ArrowClipper(),
             child: Container(
@@ -115,8 +138,9 @@ class _EnergyArrowRow extends StatelessWidget {
               padding: const EdgeInsets.only(left: 14, right: 10),
               child: Row(
                 children: [
+                  // Letra (usa code para mantener consistencia con enums.dart).
                   Text(
-                    rating.code, // usa tu extension EnergyRatingX
+                    rating.code,
                     style: const TextStyle(
                       fontWeight: FontWeight.w900,
                       fontSize: 18,
@@ -124,9 +148,13 @@ class _EnergyArrowRow extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
+                  // Indicador visual de selección.
                   if (selected)
-                    const Icon(Icons.check_circle,
-                        size: 22, color: Colors.black),
+                    const Icon(
+                      Icons.check_circle,
+                      size: 22,
+                      color: Colors.black,
+                    ),
                 ],
               ),
             ),
@@ -137,11 +165,12 @@ class _EnergyArrowRow extends StatelessWidget {
   }
 }
 
+/// Clipper que dibuja una flecha hacia la derecha (rectángulo + punta).
+/// Incluye un pequeño “notch” a la izquierda para parecerse más a la etiqueta real.
 class _ArrowClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
-    // Flecha hacia la derecha: rectángulo + triángulo
-    final arrowHead = size.height * 0.55; // tamaño de punta
+    final arrowHead = size.height * 0.55;
     final notch = size.height * 0.20;
 
     final w = size.width;

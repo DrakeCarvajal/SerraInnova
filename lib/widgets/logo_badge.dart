@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 
-//import 'app_theme.dart';
-
+/// Widget reutilizable para mostrar el logo de la app dentro de un “badge” circular.
+/// Se usa en distintas pantallas (landing, top bar, detalle) para mantener identidad visual.
 class LogoBadge extends StatelessWidget {
   const LogoBadge({super.key, this.size = 56});
 
+  /// Tamaño total del círculo (ancho y alto).
   final double size;
 
   @override
   Widget build(BuildContext context) {
-    // Placeholder circular (pon tu logo como Image.asset si quieres)
+    // Contenedor circular que actúa como fondo del logo.
     return Container(
       width: size,
       height: size,
@@ -17,6 +18,8 @@ class LogoBadge extends StatelessWidget {
         shape: BoxShape.circle,
         color: Colors.white,
       ),
+
+      // Centra el logo y ajusta su tamaño relativo al badge.
       child: Center(
         child: Image.asset(
           '../../assets/logo.png',
